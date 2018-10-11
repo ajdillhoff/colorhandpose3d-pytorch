@@ -1,6 +1,6 @@
 # PoseNet.py
 # Alex Dillhoff (ajdillhoff@gmail.com)
-# Model definition for the hand segmentation network.
+# Model definition for the 2D heatmap prediction network.
 
 import torch
 import torch.nn as nn
