@@ -70,45 +70,45 @@ class PoseNet(nn.Module):
         """
 
         # Stage 1
-        x = F.relu(self.conv1_1(x)) # 1
-        x = F.relu(self.conv1_2(x)) # 2
+        x = F.leaky_relu(self.conv1_1(x)) # 1
+        x = F.leaky_relu(self.conv1_2(x)) # 2
         x = self.pool(x)          # 3
-        x = F.relu(self.conv2_1(x)) # 4
-        x = F.relu(self.conv2_2(x)) # 5
+        x = F.leaky_relu(self.conv2_1(x)) # 4
+        x = F.leaky_relu(self.conv2_2(x)) # 5
         x = self.pool(x)          # 6
-        x = F.relu(self.conv3_1(x)) # 7
-        x = F.relu(self.conv3_2(x)) # 8
-        x = F.relu(self.conv3_3(x)) # 9
-        x = F.relu(self.conv3_4(x)) # 10
+        x = F.leaky_relu(self.conv3_1(x)) # 7
+        x = F.leaky_relu(self.conv3_2(x)) # 8
+        x = F.leaky_relu(self.conv3_3(x)) # 9
+        x = F.leaky_relu(self.conv3_4(x)) # 10
         x = self.pool(x)          # 11
-        x = F.relu(self.conv4_1(x)) # 12
-        x = F.relu(self.conv4_2(x)) # 13
-        x = F.relu(self.conv4_3(x)) # 14
-        x = F.relu(self.conv4_4(x)) # 15
-        x = F.relu(self.conv4_5(x)) # 16
-        x = F.relu(self.conv4_6(x)) # 17
-        encoding = F.relu(self.conv4_7(x)) # 18
-        x = F.relu(self.conv5_1(encoding))
+        x = F.leaky_relu(self.conv4_1(x)) # 12
+        x = F.leaky_relu(self.conv4_2(x)) # 13
+        x = F.leaky_relu(self.conv4_3(x)) # 14
+        x = F.leaky_relu(self.conv4_4(x)) # 15
+        x = F.leaky_relu(self.conv4_5(x)) # 16
+        x = F.leaky_relu(self.conv4_6(x)) # 17
+        encoding = F.leaky_relu(self.conv4_7(x)) # 18
+        x = F.leaky_relu(self.conv5_1(encoding))
         scoremap = self.conv5_2(x)
 
         # Stage 2
         x = torch.cat([scoremap, encoding], dim=1)
-        x = F.relu(self.conv6_1(x))
-        x = F.relu(self.conv6_2(x))
-        x = F.relu(self.conv6_3(x))
-        x = F.relu(self.conv6_4(x))
-        x = F.relu(self.conv6_5(x))
-        x = F.relu(self.conv6_6(x))
+        x = F.leaky_relu(self.conv6_1(x))
+        x = F.leaky_relu(self.conv6_2(x))
+        x = F.leaky_relu(self.conv6_3(x))
+        x = F.leaky_relu(self.conv6_4(x))
+        x = F.leaky_relu(self.conv6_5(x))
+        x = F.leaky_relu(self.conv6_6(x))
         scoremap = self.conv6_7(x)
 
         # Stage 3
         x = torch.cat([scoremap, encoding], dim=1)
-        x = F.relu(self.conv7_1(x))
-        x = F.relu(self.conv7_2(x))
-        x = F.relu(self.conv7_3(x))
-        x = F.relu(self.conv7_4(x))
-        x = F.relu(self.conv7_5(x))
-        x = F.relu(self.conv7_6(x))
+        x = F.leaky_relu(self.conv7_1(x))
+        x = F.leaky_relu(self.conv7_2(x))
+        x = F.leaky_relu(self.conv7_3(x))
+        x = F.leaky_relu(self.conv7_4(x))
+        x = F.leaky_relu(self.conv7_5(x))
+        x = F.leaky_relu(self.conv7_6(x))
         x = self.conv7_7(x)
 
         return x

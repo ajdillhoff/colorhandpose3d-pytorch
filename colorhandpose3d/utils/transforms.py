@@ -17,6 +17,7 @@ def get_rotation_matrix(rot_params):
         rot_matrix - Tensor (batch x 3 x 3): Rotation matrices.
     """
 
+    print('rot_params: {0}'.format(rot_params))
     theta = rot_params.norm(dim=1)
 
     st = torch.sin(theta)

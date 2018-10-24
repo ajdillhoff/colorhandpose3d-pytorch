@@ -330,3 +330,25 @@ def plot_hand_3d(coords_xyz, axis, color_fixed=None, linewidth='1'):
             axis.plot(coords[:, 0], coords[:, 1], coords[:, 2], color_fixed, linewidth=linewidth)
 
     axis.view_init(azim=-90., elev=90.)
+
+
+def calculate_padding(input_size, kernel_size, stride):
+    """Calculates the amount of padding to add according to Tensorflow's
+    padding strategy."""
+
+    cond = input_size % stride
+
+    if cond == 0:
+        pad = max(kernel_size - stride, 0)
+    else:
+        pad = max(kernel_size - cond, 0)
+
+    if pad % 2 == 0:
+        pad_val = pad // 2
+        padding = (pad_val, pad_val)
+    else:
+        pad_val_start = pad // 2
+        pad_val_end = pad - pad_val_start
+        padding = (pad_val_start, pad_val_end)
+
+    return padding

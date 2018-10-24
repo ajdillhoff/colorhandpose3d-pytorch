@@ -47,24 +47,26 @@ class HandSegNet(nn.Module):
             [batch x 256 x 256] hand segmentation mask.
         """
 
-        x = F.relu(self.conv1_1(x)) # 1
-        x = F.relu(self.conv1_2(x)) # 2
+        s = x.shape
+        x = F.leaky_relu(self.conv1_1(x)) # 1
+        x = F.leaky_relu(self.conv1_2(x)) # 2
         x = self.pool(x)          # 3
-        x = F.relu(self.conv2_1(x)) # 4
-        x = F.relu(self.conv2_2(x)) # 5
+        x = F.leaky_relu(self.conv2_1(x)) # 4
+        x = F.leaky_relu(self.conv2_2(x)) # 5
         x = self.pool(x)          # 6
-        x = F.relu(self.conv3_1(x)) # 7
-        x = F.relu(self.conv3_2(x)) # 8
-        x = F.relu(self.conv3_3(x)) # 9
-        x = F.relu(self.conv3_4(x)) # 10
+        x = F.leaky_relu(self.conv3_1(x)) # 7
+        x = F.leaky_relu(self.conv3_2(x)) # 8
+        x = F.leaky_relu(self.conv3_3(x)) # 9
+        x = F.leaky_relu(self.conv3_4(x)) # 10
         x = self.pool(x)          # 11
-        x = F.relu(self.conv4_1(x)) # 12
-        x = F.relu(self.conv4_2(x)) # 13
-        x = F.relu(self.conv4_3(x)) # 14
-        x = F.relu(self.conv4_4(x)) # 15
-        x = F.relu(self.conv5_1(x)) # 16
-        x = F.relu(self.conv5_2(x))
-        x = F.relu(self.conv6_1(x))
+        x = F.leaky_relu(self.conv4_1(x)) # 12
+        x = F.leaky_relu(self.conv4_2(x)) # 13
+        x = F.leaky_relu(self.conv4_3(x)) # 14
+        x = F.leaky_relu(self.conv4_4(x)) # 15
+        x = F.leaky_relu(self.conv5_1(x)) # 16
+        x = F.leaky_relu(self.conv5_2(x))
+        x = F.leaky_relu(self.conv6_1(x))
         x = self.conv6_2(x)         # 17
-        x = F.interpolate(x, 256, mode='bilinear', align_corners=False) # 18
+        x = F.interpolate(x, s[2], mode='bilinear', align_corners=False) # 18
+
         return x

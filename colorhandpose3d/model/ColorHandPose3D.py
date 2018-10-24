@@ -72,6 +72,7 @@ class ColorHandPose3D(torch.nn.Module):
 
         # get normalized 3d coordinates
         rot_matrix = get_rotation_matrix(rot_params)
+        print(rot_matrix.shape)
         cond_right = torch.eq(torch.argmax(hand_sides, 1), 1)
         cond_right_all = torch.reshape(cond_right, [-1, 1, 1]).repeat(1, self.num_keypoints, 3)
         coords_xyz_can_flip = flip_right_hand(coord_can, cond_right_all)
