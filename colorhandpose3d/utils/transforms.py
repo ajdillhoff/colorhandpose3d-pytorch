@@ -57,10 +57,38 @@ def flip_right_hand(coords_xyz_canonical, cond_right):
     assert len(s) == 3, "coords_xyz_canonical must be (batch x 3 x num_keypoints)."
     assert len(cond_right.shape) == 3, "cond_right must be (batch x 3 x num_keypoints)."
 
-    coords_xyz_canonical_mirrored = coords_xyz_canonical
+    coords_xyz_canonical_mirrored = coords_xyz_canonical.clone()
     coords_xyz_canonical_mirrored[:, :, 2] *= -1.
 
     coords_xyz_canonical_left = torch.where(cond_right, coords_xyz_canonical_mirrored, coords_xyz_canonical)
+
+    return coords_xyz_canonical_left
+
+
+def flip_left_hand(coords_xyz_canonical, cond_right):
+    """Flips the given canonical coordinates, when cond_right is false.
+
+    The returned coordinates represent those of the right hand.
+
+    Args:
+        coords_xyz_canonical - Tensor (batch x num_keypoints x 3): Coordinates
+            for each keypoint.
+        cond_right - Tensor (batch x num_keypoints x 3): Values are 0 or 1
+            depending on if the keypoints represent the left hand.
+
+    Returns:
+        coords_xyz_canonical_right - Tensor (batch x num_keypoints x 3):
+            Resulting coordinates. Remain unchanged if cond_right is True.
+    """
+
+    s = coords_xyz_canonical.shape
+    assert len(s) == 3, "coords_xyz_canonical must be (batch x 3 x num_keypoints)."
+    assert len(cond_right.shape) == 3, "cond_right must be (batch x 3 x num_keypoints)."
+
+    coords_xyz_canonical_mirrored = coords_xyz_canonical.clone()
+    coords_xyz_canonical_mirrored[:, :, 0] *= -1.
+
+    coords_xyz_canonical_left = torch.where(cond_right, coords_xyz_canonical, coords_xyz_canonical_mirrored)
 
     return coords_xyz_canonical_left
 

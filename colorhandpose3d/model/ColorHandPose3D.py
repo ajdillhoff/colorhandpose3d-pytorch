@@ -67,16 +67,21 @@ class ColorHandPose3D(torch.nn.Module):
 
         # estimate 3d pose
         coord_can = self.poseprior(keypoints_scoremap, hand_sides)
+        print('[DEBUG] ColorHandPose3D.forward(): coord_can = {0}'.format(coord_can))
 
         rot_params = self.viewpoint(keypoints_scoremap, hand_sides)
 
         # get normalized 3d coordinates
         rot_matrix = get_rotation_matrix(rot_params)
-        print(rot_matrix.shape)
         cond_right = torch.eq(torch.argmax(hand_sides, 1), 1)
         cond_right_all = torch.reshape(cond_right, [-1, 1, 1]).repeat(1, self.num_keypoints, 3)
+        print('[DEBUG] ColorHandPose3D.forward(): cond_right_all = {0}'.format(cond_right_all))
         coords_xyz_can_flip = flip_right_hand(coord_can, cond_right_all)
+        # coords_xyz_can_flip = flip_hand(coord_can, cond_right_all)
+        print('[DEBUG] ColorHandPose3D.forward(): coords_xyz_can_flip = {0}'.format(coords_xyz_can_flip))
         coords_xyz_rel_normed = coords_xyz_can_flip @ rot_matrix
+        # DEBUG for left hand
+        coords_xyz_rel_normed = flip_left_hand(coords_xyz_rel_normed, cond_right_all)
 
         # scale heatmaps
         keypoints_scoremap = F.interpolate(keypoints_scoremap,

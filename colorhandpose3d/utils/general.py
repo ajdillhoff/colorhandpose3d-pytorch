@@ -329,7 +329,10 @@ def plot_hand_3d(coords_xyz, axis, color_fixed=None, linewidth='1'):
         else:
             axis.plot(coords[:, 0], coords[:, 1], coords[:, 2], color_fixed, linewidth=linewidth)
 
-    axis.view_init(azim=-90., elev=90.)
+    axis.set_xlabel('$X$', fontsize=20)
+    axis.set_ylabel('$Y$', fontsize=20)
+    axis.set_zlabel('$Z$', fontsize=20)
+    axis.view_init(azim=-90., elev=-90.)
 
 
 def calculate_padding(input_size, kernel_size, stride):
