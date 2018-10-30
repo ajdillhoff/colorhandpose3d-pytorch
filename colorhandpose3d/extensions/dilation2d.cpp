@@ -12,24 +12,31 @@
 /*     }; */
 /* }; */
 
-void dilation2d(at::Tensor & input_, at::Tensor & kernel_, int stride_rows,
+at::Tensor dilation2d(at::Tensor input, at::Tensor kernel, int stride_rows,
                 int stride_cols, int rate_rows, int rate_cols, int pad_top,
-                int pad_left, at::Tensor & output_) {
+                int pad_left, int output_height, int output_width) {
     // Tensor accessors
-    auto input_a = input_.accessor<float,4>();
-    auto kernel_a = kernel_.accessor<float,3>();
-    auto output_a = output_.accessor<float,4>();
+    at::Tensor output = at::zeros(torch::CPU(at::kFloat), {input.size(0), input.size(1), output_height, output_width});
+    auto input_a = input.accessor<float,4>();
+    auto kernel_a = kernel.accessor<float,3>();
+    auto output_a = output.accessor<float,4>();
+    auto input_ = input.contiguous();
+    auto kernel_ = kernel.contiguous();
+    auto output_ = output.contiguous();
+    auto input_data = input_.data<float>();
+    auto kernel_data = kernel_.data<float>();
+    auto output_data = output_.data<float>();
 
-    const int batch = input_.sizes()[0];
-    const int depth = input_.sizes()[1];
-    const int input_rows = input_.sizes()[2];
-    const int input_cols = input_.sizes()[3];
+    const int batch = input.sizes()[0];
+    const int depth = input.sizes()[1];
+    const int input_rows = input.sizes()[2];
+    const int input_cols = input.sizes()[3];
 
-    const int kernel_rows = kernel_.sizes()[1];
-    const int kernel_cols = kernel_.sizes()[2];
+    const int kernel_rows = kernel.sizes()[1];
+    const int kernel_cols = kernel.sizes()[2];
 
-    const int output_rows = output_.sizes()[2];
-    const int output_cols = output_.sizes()[3];
+    const int output_rows = output.sizes()[2];
+    const int output_cols = output.sizes()[3];
 
     for (int b = 0; b < batch; b++) {
         for (int h_out = 0; h_out < output_rows; h_out++) {
@@ -57,6 +64,8 @@ void dilation2d(at::Tensor & input_, at::Tensor & kernel_, int stride_rows,
             }
         }
     }
+
+    return output;
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {

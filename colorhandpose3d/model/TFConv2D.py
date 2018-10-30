@@ -64,7 +64,6 @@ class TFConv2D(torch.nn.Module):
 
         if self.padding == "SAME":
             x = self.pad_input(x)
-            print('padding x to shape {0}'.format(x.shape))
 
         return F.conv2d(x, self.weight, self.bias, self.stride, padding=0,
                         dilation=self.dilation, groups=self.groups)

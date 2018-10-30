@@ -1,4 +1,5 @@
 import math
+import timeit
 
 import numpy as np
 import torch
@@ -13,7 +14,7 @@ def dilation(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
 
     Args:
         x - (batch_size, channel_size, height, width): Input `Tensor`.
-        kernel - (chanel_size, height, width): Dilation kernel.
+        kernel - (channel_size, height, width): Dilation kernel.
         stride - (stride_height, stride_width): A list of `int`s determining
             the stride of the `kernel`.
         rates - (rate_height, rate_width): A list of `int`s determining the stride
@@ -32,10 +33,12 @@ def dilation(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
     output_height = math.floor((x.shape[2] + 2 * padding[0] - kernel.shape[1]) / stride[0]) + 1
     output_width = math.floor((x.shape[3] + 2 * padding[1] - kernel.shape[2]) / stride[1]) + 1
 
-    output = torch.zeros(x.shape[0], x.shape[1], output_height, output_width)
+    # output = torch.zeros(x.shape[0], x.shape[1], output_height, output_width, device=x.device)
 
     # C++ implementation
-    dilation2d.dilation2d(x, kernel, stride[0], stride[1], rates[0], rates[1], padding[0], padding[1], output)
+    output = dilation2d.dilation2d(x, kernel, stride[0], stride[1], rates[0],
+                                   rates[1], padding[0], padding[1],
+                                   output_height, output_width)
 
     return output
 
@@ -69,15 +72,19 @@ def single_obj_scoremap(mask, filter_size=21):
     s = mask.shape
     assert len(s) == 4, "Scoremap must be 4D."
 
+    device = mask.device
+    if device != torch.device('cpu'):
+        mask = mask.cpu()
+
     scoremap_softmax = F.softmax(mask, dim=1)
-    scoremap_softmax = scoremap_softmax[:, 1, :, :].unsqueeze(0)
+    scoremap_softmax = scoremap_softmax[:, 1:, :, :]
     scoremap_fg_vals, scoremap_fg_idxs = scoremap_softmax.max(dim=1, keepdim=False)
     detmap_fg = torch.round(scoremap_fg_vals)
 
     max_loc = max_coordinate_dense(scoremap_fg_vals).to(torch.float32)
 
     objectmap_list = []
-    kernel_dil = torch.ones(1, filter_size, filter_size) / float(filter_size * filter_size)
+    kernel_dil = torch.ones(1, filter_size, filter_size, device=mask.device) / float(filter_size * filter_size)
 
     for i in range(s[0]):
         # create initial object map
@@ -85,15 +92,21 @@ def single_obj_scoremap(mask, filter_size=21):
 
         num_passes = max(s[2], s[3]) // (filter_size // 2)
         for j in range(num_passes):
+            start = timeit.default_timer()
             objectmap = torch.reshape(objectmap, [1, 1, s[2], s[3]])
             objectmap_dil = dilation(objectmap, kernel_dil, padding=[padding_size, padding_size])
             objectmap_dil = torch.reshape(objectmap_dil, [s[2], s[3]])
             objectmap = torch.round(detmap_fg[i, :, :] * objectmap_dil)
+            end = timeit.default_timer()
 
         objectmap = torch.reshape(objectmap, [1, s[2], s[3]])
         objectmap_list.append(objectmap)
 
-    return torch.stack(objectmap_list)
+    objectmap_list = torch.stack(objectmap_list)
+    if device != torch.device('cpu'):
+        objectmap_list = objectmap_list.cuda()
+
+    return objectmap_list
 
 def calc_center_bb(binary_class_mask):
     """Calculate the bounding box of the object in the binary class mask.
@@ -174,8 +187,12 @@ def crop_image_from_xy(image, crop_location, crop_size, scale=1.0):
     x1 /= s[3]
     x2 /= s[3]
     boxes = torch.stack([y1, x1, y2, x2], -1).to(torch.float32)
-
     box_ind = torch.arange(0, s[0], dtype=torch.int32)
+
+    if image.device != torch.device("cpu"):
+        boxes = boxes.cuda()
+        box_ind = box_ind.cuda()
+
     image_crops = CropAndResizeFunction(crop_size, crop_size, 0)(image, boxes, box_ind)
 
     return image_crops

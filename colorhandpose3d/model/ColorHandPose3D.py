@@ -1,3 +1,5 @@
+import timeit
+
 import torch
 
 from .HandSegNet import HandSegNet
@@ -48,6 +50,8 @@ class ColorHandPose3D(torch.nn.Module):
                 the joints, where N_k is the number of keypoints.
         """
 
+        start = timeit.default_timer()
+
         # Segment the hand
         hand_scoremap = self.handsegnet.forward(x)
 
@@ -59,7 +63,10 @@ class ColorHandPose3D(torch.nn.Module):
         crops = crops.to(torch.float32)
 
         crops *= 1.25
-        scale_crop = min(max(self.crop_size / crops, 0.25), 5.0)
+        scale_crop = torch.min(
+            torch.max(self.crop_size / crops,
+                      torch.tensor(0.25, device=x.device)),
+            torch.tensor(5.0, device=x.device))
         image_crop = crop_image_from_xy(x, centers, self.crop_size, scale_crop)
 
         # detect 2d keypoints
@@ -67,7 +74,6 @@ class ColorHandPose3D(torch.nn.Module):
 
         # estimate 3d pose
         coord_can = self.poseprior(keypoints_scoremap, hand_sides)
-        print('[DEBUG] ColorHandPose3D.forward(): coord_can = {0}'.format(coord_can))
 
         rot_params = self.viewpoint(keypoints_scoremap, hand_sides)
 
@@ -75,12 +81,10 @@ class ColorHandPose3D(torch.nn.Module):
         rot_matrix = get_rotation_matrix(rot_params)
         cond_right = torch.eq(torch.argmax(hand_sides, 1), 1)
         cond_right_all = torch.reshape(cond_right, [-1, 1, 1]).repeat(1, self.num_keypoints, 3)
-        print('[DEBUG] ColorHandPose3D.forward(): cond_right_all = {0}'.format(cond_right_all))
         coords_xyz_can_flip = flip_right_hand(coord_can, cond_right_all)
-        # coords_xyz_can_flip = flip_hand(coord_can, cond_right_all)
-        print('[DEBUG] ColorHandPose3D.forward(): coords_xyz_can_flip = {0}'.format(coords_xyz_can_flip))
         coords_xyz_rel_normed = coords_xyz_can_flip @ rot_matrix
-        # DEBUG for left hand
+
+        # flip left handed inputs wrt to the x-axis for Libhand compatibility.
         coords_xyz_rel_normed = flip_left_hand(coords_xyz_rel_normed, cond_right_all)
 
         # scale heatmaps
