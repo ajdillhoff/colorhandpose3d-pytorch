@@ -3,6 +3,16 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#define gpuErrorcheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+    if (code != cudaSuccess) {
+        fprintf(stderr, "GPUAssert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) {
+            exit(code);
+        }
+    }
+}
+
 template <typename scalar_t>
 __global__ void dilation_cuda_kernel(
         const scalar_t* __restrict__ input,
@@ -23,7 +33,7 @@ __global__ void dilation_cuda_kernel(
 
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
-    const int batch = blockIdx.z * blockDim.z + threadIdx.z;
+    /* const int batch = blockIdx.z * blockDim.z + threadIdx.z; */
 
     const int h_beg = y * stride_rows - pad_top;
     const int w_beg = x * stride_cols - pad_left;
@@ -36,8 +46,7 @@ __global__ void dilation_cuda_kernel(
                 const int w_in = w_beg + w * rate_cols;
                 if (w_in >= 0 && w_in < input_cols) {
                     auto val =
-                        input[batch * (input_rows * input_cols) + h_in * input_cols + w_in]
-                            + kernel[h * kernel_cols + w];
+                        input[h_in * input_cols + w_in] + kernel[h * kernel_cols + w];
                     if (val > cur_val) {
                         cur_val = val;
                     }
@@ -45,13 +54,11 @@ __global__ void dilation_cuda_kernel(
             }
         }
     }
-    if (cur_val < -1) {
-        printf("blockIdx.x %d, blockDim.x %d, threadIdx.x %d\n", blockIdx.x, blockDim.x, threadIdx.x);
-        printf("blockIdx.y %d, blockDim.y %d, threadIdx.y %d\n", blockIdx.y, blockDim.y, threadIdx.y);
-        printf("blockIdx.z %d, blockDim.z %d, threadIdx.z %d\n", blockIdx.z, blockDim.z, threadIdx.z);
-        printf("h_beg %d, w_beg %d\n", h_beg, w_beg);
-    }
-    output[batch * (output_rows * output_cols) + y * output_cols + x] = cur_val;
+    /* printf("blockIdx.x %d, blockDim.x %d, threadIdx.x %d\n", blockIdx.x, blockDim.x, threadIdx.x); */
+    /* printf("blockIdx.y %d, blockDim.y %d, threadIdx.y %d\n", blockIdx.y, blockDim.y, threadIdx.y); */
+    /* printf("blockIdx.z %d, blockDim.z %d, threadIdx.z %d\n", blockIdx.z, blockDim.z, threadIdx.z); */
+    /* printf("h_beg %d, w_beg %d\n", h_beg, w_beg); */
+    output[y * output_cols + x] = cur_val;
 }
 
 at::Tensor dilation_cuda(
@@ -74,30 +81,36 @@ at::Tensor dilation_cuda(
     const int kernel_rows = kernel.size(0);
     const int kernel_cols = kernel.size(1);
 
-    const dim3 threads(8, 8, 1);
-    const dim3 blocks((output_height + threads.x - 1) / threads.x, (output_width + threads.y - 1) / threads.y, batch_size);
+    const int req_thread = min(output_height, 16);
+
+    const dim3 threads(req_thread, req_thread);
+    const int im_thread = (output_height / req_thread);
+    const dim3 blocks(im_thread, im_thread);
 
     auto output = at::zeros(input.type(), {batch_size, output_height, output_width});
-    std::cout << blocks.x << " " << blocks.y << " " << blocks.z << std::endl;
 
-    AT_DISPATCH_FLOATING_TYPES(input.type(), "dilation_cuda", ([&] {
-      dilation_cuda_kernel<scalar_t><<<blocks, threads>>>(
-              input.data<scalar_t>(),
-              kernel.data<scalar_t>(),
-              output.data<scalar_t>(),
-              input_rows,
-              input_cols,
-              kernel_rows,
-              kernel_cols,
-              output_height,
-              output_width,
-              stride_rows,
-              stride_cols,
-              rate_rows,
-              rate_cols,
-              pad_top,
-              pad_left);
-    }));
+    for (int i = 0; i < batch_size; i++) {
+        AT_DISPATCH_FLOATING_TYPES(input.type(), "dilation_cuda", ([&] {
+                    dilation_cuda_kernel<scalar_t><<<blocks, threads>>>(
+                            input[i].data<scalar_t>(),
+                            kernel.data<scalar_t>(),
+                            output[i].data<scalar_t>(),
+                            input_rows,
+                            input_cols,
+                            kernel_rows,
+                            kernel_cols,
+                            output_height,
+                            output_width,
+                            stride_rows,
+                            stride_cols,
+                            rate_rows,
+                            rate_cols,
+                            pad_top,
+                            pad_left);
+                    }));
+    }
+
+    gpuErrorcheck(cudaPeekAtLastError());
 
     cudaDeviceSynchronize();
 

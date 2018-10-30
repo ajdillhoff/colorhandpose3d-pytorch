@@ -6,15 +6,15 @@ import torch
 import torch.nn.functional as F
 from roi_align.crop_and_resize import CropAndResizeFunction
 
-import dilation2d
+import dilation
 
 
-def dilation(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
+def dilation_wrap(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
     """Computes the dilation of a 4D input with a 3D kernel.
 
     Args:
-        x - (batch_size, channel_size, height, width): Input `Tensor`.
-        kernel - (channel_size, height, width): Dilation kernel.
+        x - (batch_size, height, width): Input `Tensor`.
+        kernel - (height, width): Dilation kernel.
         stride - (stride_height, stride_width): A list of `int`s determining
             the stride of the `kernel`.
         rates - (rate_height, rate_width): A list of `int`s determining the stride
@@ -26,17 +26,22 @@ def dilation(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
         A `Tensor` with the same type as `x`.
     """
     # TODO(Alex): Check that the dilation rate and kernel size are appropriate given the input size.
-    assert len(x.shape) == 4, "Input must be 4D (N, C, H, W)"
-    assert len(kernel.shape) == 3, "Kernel must be 3D (C, H, W)"
+    assert len(x.shape) == 3, "Input must be 4D (N, H, W)"
+    assert len(kernel.shape) == 2, "Kernel must be 3D (H, W)"
 
     # Calculate output height and width
-    output_height = math.floor((x.shape[2] + 2 * padding[0] - kernel.shape[1]) / stride[0]) + 1
-    output_width = math.floor((x.shape[3] + 2 * padding[1] - kernel.shape[2]) / stride[1]) + 1
+    output_height = math.floor((x.shape[1] + 2 * padding[0] - kernel.shape[0]) / stride[0]) + 1
+    output_width = math.floor((x.shape[2] + 2 * padding[1] - kernel.shape[1]) / stride[1]) + 1
 
     # output = torch.zeros(x.shape[0], x.shape[1], output_height, output_width, device=x.device)
 
     # C++ implementation
-    output = dilation2d.dilation2d(x, kernel, stride[0], stride[1], rates[0],
+    # output = dilation2d.dilation2d(x, kernel, stride[0], stride[1], rates[0],
+    #                                rates[1], padding[0], padding[1],
+    #                                output_height, output_width)
+
+    # CUDA implementation
+    output = dilation.dilation(x, kernel, stride[0], stride[1], rates[0],
                                    rates[1], padding[0], padding[1],
                                    output_height, output_width)
 
@@ -72,9 +77,9 @@ def single_obj_scoremap(mask, filter_size=21):
     s = mask.shape
     assert len(s) == 4, "Scoremap must be 4D."
 
-    device = mask.device
-    if device != torch.device('cpu'):
-        mask = mask.cpu()
+    # device = mask.device
+    # if device != torch.device('cpu'):
+    #     mask = mask.cpu()
 
     scoremap_softmax = F.softmax(mask, dim=1)
     scoremap_softmax = scoremap_softmax[:, 1:, :, :]
@@ -84,7 +89,7 @@ def single_obj_scoremap(mask, filter_size=21):
     max_loc = max_coordinate_dense(scoremap_fg_vals).to(torch.float32)
 
     objectmap_list = []
-    kernel_dil = torch.ones(1, filter_size, filter_size, device=mask.device) / float(filter_size * filter_size)
+    kernel_dil = torch.ones(filter_size, filter_size, device=mask.device) / float(filter_size * filter_size)
 
     for i in range(s[0]):
         # create initial object map
@@ -93,8 +98,8 @@ def single_obj_scoremap(mask, filter_size=21):
         num_passes = max(s[2], s[3]) // (filter_size // 2)
         for j in range(num_passes):
             start = timeit.default_timer()
-            objectmap = torch.reshape(objectmap, [1, 1, s[2], s[3]])
-            objectmap_dil = dilation(objectmap, kernel_dil, padding=[padding_size, padding_size])
+            objectmap = torch.reshape(objectmap, [1, s[2], s[3]])
+            objectmap_dil = dilation_wrap(objectmap, kernel_dil, padding=[padding_size, padding_size])
             objectmap_dil = torch.reshape(objectmap_dil, [s[2], s[3]])
             objectmap = torch.round(detmap_fg[i, :, :] * objectmap_dil)
             end = timeit.default_timer()
@@ -103,8 +108,8 @@ def single_obj_scoremap(mask, filter_size=21):
         objectmap_list.append(objectmap)
 
     objectmap_list = torch.stack(objectmap_list)
-    if device != torch.device('cpu'):
-        objectmap_list = objectmap_list.cuda()
+    # if device != torch.device('cpu'):
+    #     objectmap_list = objectmap_list.cuda()
 
     return objectmap_list
 
