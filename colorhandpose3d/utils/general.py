@@ -140,7 +140,7 @@ def calc_center_bb(binary_class_mask):
     for i in range(s[0]):
         if len(binary_class_mask[i].nonzero().shape) < 2:
             y_min, x_min, y_max, x_max = 0., 0., 0., 0.
-            bb = torch.tensor([0., 0.], device=binary_class_mask.device)
+            bb = torch.tensor([0, 0], device=binary_class_mask.device)
             bbs.append(bb)
             centers.append(torch.tensor([160., 160.], device=binary_class_mask.device))
             crops.append(torch.tensor([100.], device=binary_class_mask.device))
