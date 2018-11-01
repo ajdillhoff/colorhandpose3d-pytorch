@@ -140,19 +140,21 @@ def calc_center_bb(binary_class_mask):
     for i in range(s[0]):
         if len(binary_class_mask[i].nonzero().shape) < 2:
             bb = torch.zeros(2, 2,
-                             dtype=torch.long,
+                             dtype=torch.int32,
                              device=binary_class_mask.device)
             bbs.append(bb)
-            centers.append(torch.tensor([160., 160.],
+            centers.append(torch.tensor([160, 160],
+                                        dtype=torch.int32,
                                         device=binary_class_mask.device))
-            crops.append(torch.tensor([100.],
+            crops.append(torch.tensor(100,
+                                      dtype=torch.int32,
                                       device=binary_class_mask.device))
             continue
         else:
-            y_min = binary_class_mask[i].nonzero()[:, 0].min()
-            x_min = binary_class_mask[i].nonzero()[:, 1].min()
-            y_max = binary_class_mask[i].nonzero()[:, 0].max()
-            x_max = binary_class_mask[i].nonzero()[:, 1].max()
+            y_min = binary_class_mask[i].nonzero()[:, 0].min().to(torch.int32)
+            x_min = binary_class_mask[i].nonzero()[:, 1].min().to(torch.int32)
+            y_max = binary_class_mask[i].nonzero()[:, 0].max().to(torch.int32)
+            x_max = binary_class_mask[i].nonzero()[:, 1].max().to(torch.int32)
 
         start = torch.stack([y_min, x_min])
         end = torch.stack([y_max, x_max])
