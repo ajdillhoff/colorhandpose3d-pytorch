@@ -37,6 +37,10 @@ class ColorHandPose3D(torch.nn.Module):
         self.poseprior.load_state_dict(torch.load('/home/ajdillhoff/dev/projects/colorhandpose3d-pytorch/saved/poseprior.pth.tar'))
         self.viewpoint.load_state_dict(torch.load('/home/ajdillhoff/dev/projects/colorhandpose3d-pytorch/saved/viewpoint.pth.tar'))
 
+        # freeze hand segnet
+        for param in self.handsegnet.parameters():
+            param.requires_grad = False
+
     def forward(self, x, hand_sides):
         """Forward pass through the network.
 
