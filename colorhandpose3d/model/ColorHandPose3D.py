@@ -1,5 +1,3 @@
-import timeit
-
 import torch
 
 from .HandSegNet import HandSegNet
@@ -14,12 +12,15 @@ class ColorHandPose3D(torch.nn.Module):
     """ColorHandPose3D predicts the 3D joint location of a hand given the
     cropped color image of a hand."""
 
-    def __init__(self, crop_size=None, num_keypoints=None):
+    def __init__(self, with_hand_segnet=True, crop_size=None, num_keypoints=None):
         super(ColorHandPose3D, self).__init__()
-        self.handsegnet = HandSegNet()
+        if with_hand_segnet is True:
+            self.handsegnet = HandSegNet()
         self.posenet = PoseNet()
         self.poseprior = PosePrior()
         self.viewpoint = ViewPoint()
+
+        self.with_hand_segnet = with_hand_segnet
 
         if crop_size is None:
             self.crop_size = 256
@@ -32,14 +33,16 @@ class ColorHandPose3D(torch.nn.Module):
             self.num_keypoints = num_keypoints
 
         # Load weights
-        self.handsegnet.load_state_dict(torch.load('/home/ajdillhoff/dev/projects/colorhandpose3d-pytorch/saved/handsegnet.pth.tar'))
+        if self.with_hand_segnet is True:
+            self.handsegnet.load_state_dict(
+                torch.load('/home/ajdillhoff/dev/projects/colorhandpose3d-pytorch/saved/handsegnet.pth.tar'))
+            # freeze hand segnet
+            for param in self.handsegnet.parameters():
+                param.requires_grad = False
         self.posenet.load_state_dict(torch.load('/home/ajdillhoff/dev/projects/colorhandpose3d-pytorch/saved/posenet.pth.tar'))
         self.poseprior.load_state_dict(torch.load('/home/ajdillhoff/dev/projects/colorhandpose3d-pytorch/saved/poseprior.pth.tar'))
         self.viewpoint.load_state_dict(torch.load('/home/ajdillhoff/dev/projects/colorhandpose3d-pytorch/saved/viewpoint.pth.tar'))
 
-        # freeze hand segnet
-        for param in self.handsegnet.parameters():
-            param.requires_grad = False
 
     def forward(self, x, hand_sides):
         """Forward pass through the network.
@@ -56,22 +59,25 @@ class ColorHandPose3D(torch.nn.Module):
 
         start = timeit.default_timer()
 
-        # Segment the hand
-        hand_scoremap = self.handsegnet.forward(x)
+        if self.with_hand_segnet is True:
+            # Segment the hand
+            hand_scoremap = self.handsegnet.forward(x)
 
-        # Calculate single highest scoring object
-        hand_mask = single_obj_scoremap(hand_scoremap, self.num_keypoints)
+            # Calculate single highest scoring object
+            hand_mask = single_obj_scoremap(hand_scoremap, self.num_keypoints)
 
-        # crop and resize
-        centers, _, crops = calc_center_bb(hand_mask)
-        crops = crops.to(torch.float32)
+            # crop and resize
+            centers, _, crops = calc_center_bb(hand_mask)
+            crops = crops.to(torch.float32)
 
-        crops *= 1.25
-        scale_crop = torch.min(
-            torch.max(self.crop_size / crops,
-                      torch.tensor(0.25, device=x.device)),
-            torch.tensor(5.0, device=x.device))
-        image_crop = crop_image_from_xy(x, centers, self.crop_size, scale_crop)
+            crops *= 1.25
+            scale_crop = torch.min(
+                torch.max(self.crop_size / crops,
+                          torch.tensor(0.25, device=x.device)),
+                torch.tensor(5.0, device=x.device))
+            image_crop = crop_image_from_xy(x, centers, self.crop_size, scale_crop)
+        else:
+            image_crop = x
 
         # detect 2d keypoints
         keypoints_scoremap = self.posenet(image_crop)
@@ -97,4 +103,7 @@ class ColorHandPose3D(torch.nn.Module):
                                            mode='bilinear',
                                            align_corners=False)
 
-        return coords_xyz_rel_normed, keypoints_scoremap, image_crop, centers, scale_crop
+        if self.with_hand_segnet is True:
+            return coords_xyz_rel_normed, keypoints_scoremap, image_crop, centers, scale_crop
+        else:
+            return coords_xyz_rel_normed, keypoints_scoremap, coord_can
