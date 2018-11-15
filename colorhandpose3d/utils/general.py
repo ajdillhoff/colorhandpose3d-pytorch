@@ -1,5 +1,4 @@
 import math
-import timeit
 
 import numpy as np
 import torch
@@ -66,7 +65,8 @@ def max_coordinate_dense(x):
         _, max_coords = torch.max(coords, -1)
         X = torch.remainder(max_coords[:], s[1])
         Y = max_coords[:] / s[2]
-        output[:, Y, X] = 1
+        for i in range(s[0]):
+            output[i, Y[i], X[i]] = 1
 
     return output
 
@@ -93,23 +93,19 @@ def single_obj_scoremap(mask, filter_size=21):
 
     for i in range(s[0]):
         # create initial object map
-        objectmap = max_loc[i]
+        objectmap = max_loc[i].clone()
 
         num_passes = max(s[2], s[3]) // (filter_size // 2)
         for j in range(num_passes):
-            start = timeit.default_timer()
-            objectmap = torch.reshape(objectmap, [1, s[2], s[3]])
+            objectmap = torch.reshape(objectmap, (1, s[2], s[3]))
             objectmap_dil = dilation_wrap(objectmap, kernel_dil, padding=[padding_size, padding_size])
             objectmap_dil = torch.reshape(objectmap_dil, [s[2], s[3]])
-            objectmap = torch.round(detmap_fg[i, :, :] * objectmap_dil)
-            end = timeit.default_timer()
+            objectmap = torch.round(detmap_fg[i] * objectmap_dil)
 
         objectmap = torch.reshape(objectmap, [1, s[2], s[3]])
         objectmap_list.append(objectmap)
 
     objectmap_list = torch.stack(objectmap_list)
-    # if device != torch.device('cpu'):
-    #     objectmap_list = objectmap_list.cuda()
 
     return objectmap_list
 

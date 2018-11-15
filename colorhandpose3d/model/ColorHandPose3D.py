@@ -57,8 +57,6 @@ class ColorHandPose3D(torch.nn.Module):
                 the joints, where N_k is the number of keypoints.
         """
 
-        start = timeit.default_timer()
-
         if self.with_hand_segnet is True:
             # Segment the hand
             hand_scoremap = self.handsegnet.forward(x)
