@@ -36,13 +36,13 @@ def dilation_wrap(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
     if x.device == torch.device('cpu'):
         # C++ implementation technically supports multiple channels.
         # Unsqueeze at dimension 1 to denote the single channel.
-        output = dilation.dilation2d(x.unsqueeze(1), kernel.unsqueeze(0),
+        output = dilation2d.dilation2d(x.unsqueeze(1), kernel.unsqueeze(0),
                 stride[0], stride[1], rates[0],
                 rates[1], padding[0], padding[1],
                 output_height, output_width)
     else:
         # CUDA implementation
-        output = dilation_cuda.dilation2d(x, kernel, stride[0], stride[1], rates[0],
+        output = dilation2d_cuda.dilation2d(x, kernel, stride[0], stride[1], rates[0],
                 rates[1], padding[0], padding[1],
                 output_height, output_width)
 
