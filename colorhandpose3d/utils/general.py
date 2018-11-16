@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from roi_align.crop_and_resize import CropAndResizeFunction
 
-import dilation
+import dilation, dilation_cuda
 
 
 def dilation_wrap(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
@@ -25,24 +25,26 @@ def dilation_wrap(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
         A `Tensor` with the same type as `x`.
     """
     # TODO(Alex): Check that the dilation rate and kernel size are appropriate given the input size.
-    assert len(x.shape) == 3, "Input must be 4D (N, H, W)"
-    assert len(kernel.shape) == 2, "Kernel must be 3D (H, W)"
+    assert len(x.shape) == 3, "Input must be 3D (N, H, W)"
+    assert len(kernel.shape) == 2, "Kernel must be 2D (H, W)"
 
     # Calculate output height and width
     output_height = math.floor((x.shape[1] + 2 * padding[0] - kernel.shape[0]) / stride[0]) + 1
     output_width = math.floor((x.shape[2] + 2 * padding[1] - kernel.shape[1]) / stride[1]) + 1
 
-    # output = torch.zeros(x.shape[0], x.shape[1], output_height, output_width, device=x.device)
-
     # C++ implementation
-    # output = dilation2d.dilation2d(x, kernel, stride[0], stride[1], rates[0],
-    #                                rates[1], padding[0], padding[1],
-    #                                output_height, output_width)
-
-    # CUDA implementation
-    output = dilation.dilation(x, kernel, stride[0], stride[1], rates[0],
-                                   rates[1], padding[0], padding[1],
-                                   output_height, output_width)
+    if x.device == torch.device('cpu'):
+        # C++ implementation technically supports multiple channels.
+        # Unsqueeze at dimension 1 to denote the single channel.
+        output = dilation.dilation2d(x.unsqueeze(1), kernel.unsqueeze(0),
+                stride[0], stride[1], rates[0],
+                rates[1], padding[0], padding[1],
+                output_height, output_width)
+    else:
+        # CUDA implementation
+        output = dilation_cuda.dilation2d(x, kernel, stride[0], stride[1], rates[0],
+                rates[1], padding[0], padding[1],
+                output_height, output_width)
 
     return output
 
@@ -76,10 +78,6 @@ def single_obj_scoremap(mask, filter_size=21):
     padding_size = math.floor(filter_size / 2)
     s = mask.shape
     assert len(s) == 4, "Scoremap must be 4D."
-
-    # device = mask.device
-    # if device != torch.device('cpu'):
-    #     mask = mask.cpu()
 
     scoremap_softmax = F.softmax(mask, dim=1)
     scoremap_softmax = scoremap_softmax[:, 1:, :, :]

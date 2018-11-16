@@ -16,16 +16,11 @@ at::Tensor dilation2d(at::Tensor input, at::Tensor kernel, int stride_rows,
                 int stride_cols, int rate_rows, int rate_cols, int pad_top,
                 int pad_left, int output_height, int output_width) {
     // Tensor accessors
-    at::Tensor output = at::zeros(torch::CPU(at::kFloat), {input.size(0), input.size(1), output_height, output_width});
+    at::Tensor output = at::zeros({input.size(0), input.size(1), output_height, output_width},
+            torch::CPU(at::kFloat));
     auto input_a = input.accessor<float,4>();
     auto kernel_a = kernel.accessor<float,3>();
     auto output_a = output.accessor<float,4>();
-    auto input_ = input.contiguous();
-    auto kernel_ = kernel.contiguous();
-    auto output_ = output.contiguous();
-    auto input_data = input_.data<float>();
-    auto kernel_data = kernel_.data<float>();
-    auto output_data = output_.data<float>();
 
     const int batch = input.sizes()[0];
     const int depth = input.sizes()[1];

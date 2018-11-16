@@ -38,5 +38,5 @@ at::Tensor dilation(
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("dilation", &dilation, "Dilation (CUDA)");
+    m.def("dilation2d", &dilation, "Dilation (CUDA)");
 }

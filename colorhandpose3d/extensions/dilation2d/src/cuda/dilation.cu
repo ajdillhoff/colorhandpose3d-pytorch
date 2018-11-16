@@ -33,7 +33,6 @@ __global__ void dilation_cuda_kernel(
 
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
-    /* const int batch = blockIdx.z * blockDim.z + threadIdx.z; */
 
     const int h_beg = y * stride_rows - pad_top;
     const int w_beg = x * stride_cols - pad_left;
@@ -54,10 +53,6 @@ __global__ void dilation_cuda_kernel(
             }
         }
     }
-    /* printf("blockIdx.x %d, blockDim.x %d, threadIdx.x %d\n", blockIdx.x, blockDim.x, threadIdx.x); */
-    /* printf("blockIdx.y %d, blockDim.y %d, threadIdx.y %d\n", blockIdx.y, blockDim.y, threadIdx.y); */
-    /* printf("blockIdx.z %d, blockDim.z %d, threadIdx.z %d\n", blockIdx.z, blockDim.z, threadIdx.z); */
-    /* printf("h_beg %d, w_beg %d\n", h_beg, w_beg); */
     output[y * output_cols + x] = cur_val;
 }
 
@@ -74,7 +69,6 @@ at::Tensor dilation_cuda(
         int output_width) {
 
     const auto batch_size = input.size(0);
-    const auto output_size = output_height * output_width;
 
     const int input_rows = input.size(1);
     const int input_cols = input.size(2);
@@ -87,7 +81,8 @@ at::Tensor dilation_cuda(
     const int im_thread = (output_height / req_thread);
     const dim3 blocks(im_thread, im_thread);
 
-    auto output = at::zeros(input.type(), {batch_size, output_height, output_width});
+    auto output = at::zeros({batch_size, output_height, output_width},
+            input.type());
 
     for (int i = 0; i < batch_size; i++) {
         AT_DISPATCH_FLOATING_TYPES(input.type(), "dilation_cuda", ([&] {
