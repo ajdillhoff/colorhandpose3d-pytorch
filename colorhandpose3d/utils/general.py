@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from roi_align.crop_and_resize import CropAndResizeFunction
 
-import dilation, dilation_cuda
+import dilation2d, dilation2d_cuda
 
 
 def dilation_wrap(x, kernel, stride=[1, 1], rates=[1, 1], padding=[0, 0]):
